@@ -2,19 +2,19 @@
 Determine Andromeda location in ra/dec degrees
 
 Author: Vivek Gupta (vivek.gupta@csiro.au)
+Date: 20/03/2023
 '''
 
 from random import uniform
-from math import cos, pi
 from astroquery.ned import Ned
 
 
 def get_coords(galname="M31"):
-    '''
+    r'''
     Gets the coordinates (RA, DEC) from NED using astroquery
 
-    Params
-    ------
+    Parameters
+    ----------
     galname: str
             Name of the galaxy
 
@@ -31,11 +31,11 @@ def get_coords(galname="M31"):
     return (RA, DEC)
 
 def make_stars(gal_coord, NSRC=1_000_000):
-    '''
+    r'''
     Makes NSRC stars around the specified coords
 
-    Params
-    ------
+    Parameters
+    ----------
     gal_coord: tuple
             A tuple containing the RA and DEC as floats
     NSRC:   int
@@ -57,11 +57,11 @@ def make_stars(gal_coord, NSRC=1_000_000):
     return [(ras[i], decs[i]) for i in range(NSRC)]
 
 def write_catalog(fname, coords):
-    '''
+    r'''
     Writes the Star coords to a file in csv format
 
-    Params
-    ------
+    Parameters
+    ----------
     fname: str
             Name of the output csv file
     coords: list
@@ -75,8 +75,9 @@ def write_catalog(fname, coords):
             print(f"{i:07d}, {coords[i][0]:12f}, {coords[i][1]:12f}", file=f)
 
 def main():
-    '''
-    The main function
+    r'''
+    The main function.
+    Don't import it!
     '''
     galcoord = get_coords("M31")
     star_coords = make_stars(galcoord)
