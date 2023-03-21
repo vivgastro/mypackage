@@ -6,10 +6,10 @@ Date: 20/03/2023
 '''
 
 from random import uniform
-from astroquery.ned import Ned
+from astroquery.ipac.ned import Ned
+import argparse
 
-
-def get_coords(galname="M31"):
+def get_coords(galname: str="M31"):
     r'''
     Gets the coordinates (RA, DEC) from NED using astroquery
 
@@ -30,7 +30,7 @@ def get_coords(galname="M31"):
 
     return (RA, DEC)
 
-def make_stars(gal_coord, NSRC=1_000_000):
+def make_stars(gal_coord: tuple, NSRC: int=1_000_000):
     r'''
     Makes NSRC stars around the specified coords
 
@@ -56,7 +56,7 @@ def make_stars(gal_coord, NSRC=1_000_000):
 
     return [(ras[i], decs[i]) for i in range(NSRC)]
 
-def write_catalog(fname, coords):
+def write_catalog(fname :str , coords: list):
     r'''
     Writes the Star coords to a file in csv format
 
@@ -86,9 +86,18 @@ def main():
     The main function.
     Don't import it!
     '''
-    galcoord = get_coords("M31")
-    star_coords = make_stars(galcoord)
-    write_catalog(fname="catalog.csv", coords = star_coords)
+    galcoord = get_coords(args.gal)
+    star_coords = make_stars(galcoord, args.nstars)
+    write_catalog(fname=args.outname, coords = star_coords)
 
 if __name__ == '__main__':
+    a = argparse.ArgumentParser(prog='sky_sim')
+    a.add_argument('-gal', type=str,
+                   help="Name of the Galaxy (def = M31)", default="M31")
+    a.add_argument('-nstars', type=int,
+                   help="No. of stars to simulate (def = 1 mil)", default="1_000_000")
+    a.add_argument('-o', type=str, dest='outname',
+                   help="Name of the output catalog (def = catalog.csv)", default="catalog.csv")
+
+    args = a.parse_args()
     main()
