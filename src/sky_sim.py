@@ -66,8 +66,15 @@ def write_catalog(fname, coords):
             Name of the output csv file
     coords: list
             List of tuples which contains the coords (RA, DEC) of each star
+
+    Raises
+    ------
+    ValueError: If len(coords) < 1
     '''
     nsrc = len(coords)
+    if nsrc < 1:
+        raise ValueError(f"The number of start to write need to be > 0, given {nsrc}")
+
     # now write these to a csv file for use by my other program
     with  open(fname,'w', encoding='utf-8') as f:
         print("id,ra,dec", file=f)
