@@ -6,7 +6,7 @@ import uuid
 import sys
 
 NSRC = 1_000_000
-mem_id = None
+mem_id = 'this_is_a_random_string'
 
 def get_radec():
     # from wikipedia
@@ -52,8 +52,9 @@ def make_stars_parallel(ra,dec,nsrc=NSRC, cores=None):
     exit = False
     try:
         # set up the shared memory
-        global mem_id
-        mem_id = str(uuid.uuid4())
+        #global mem_id
+        #mem_id = str(uuid.uuid4())[:10]
+        #mem_id = "this_is_a_random_string"
 
         nbytes = 2 * nsrc * np.float64(1).nbytes
         radec = SharedMemory(name=f'radec_{mem_id}', create=True, size=nbytes)
@@ -63,7 +64,7 @@ def make_stars_parallel(ra,dec,nsrc=NSRC, cores=None):
         ctx = multiprocessing.get_context()
         pool = ctx.Pool(processes=cores, maxtasksperchild=1)
         try:
-            pool.map_async(make_stars, args, chunksize=1).get(timeout=10_000_000)
+            pool.map(make_stars, args, chunksize=1)
         except KeyboardInterrupt:
             print("Caught kbd interrupt")
             pool.close()
