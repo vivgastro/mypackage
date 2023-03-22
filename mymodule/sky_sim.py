@@ -1,103 +1,87 @@
-'''
-Determine Andromeda location in ra/dec degrees
+import math
+import numpy as np
+import multiprocessing
+import sys
 
-Author: Vivek Gupta (vivek.gupta@csiro.au)
-Date: 20/03/2023
-'''
+NSRC = 1_000_000
 
-from random import uniform
-from astroquery.ipac.ned import Ned
-import argparse
 
-def get_coords(galname: str="M31"):
-    r'''
-    Gets the coordinates (RA, DEC) from NED using astroquery
+def get_radec():
+    # from wikipedia
+    ra = '00:42:44.3'
+    dec = '41:16:09'
 
-    Parameters
-    ----------
-    galname: str
-            Name of the galaxy
+    d, m, s = dec.split(':')
+    dec = int(d)+int(m)/60+float(s)/3600
 
-    Returns
-    -------
-    coords: tuple
-            A tuple containing the RA and Dec in degrees as floats
-    '''
+    h, m, s = ra.split(':')
+    ra = 15*(int(h)+int(m)/60+float(s)/3600)
+    ra = ra/math.cos(dec*math.pi/180)
+    return ra,dec
 
-    result_table = Ned.query_object(galname)
-    RA = result_table['RA'].value[0]
-    DEC = result_table['DEC'].value[0]
 
-    return (RA, DEC)
+def make_stars(args):
+    """
+    """
+    #unpack the arguments
+    ra, dec, nsrc = args
+    # create an empy array for our results
+    radec = np.empty((2,nsrc))
 
-def make_stars(gal_coord: tuple, NSRC: int=1_000_000):
-    r'''
-    Makes NSRC stars around the specified coords
+    # make nsrc stars within 1 degree of ra/dec
+    radec[0,:] = np.random.uniform(ra-1, ra+1, size=nsrc)
+    radec[1,:] = np.random.uniform(dec-1, dec+1, size=nsrc)
+    
+    # return our results
+    return radec
 
-    Parameters
-    ----------
-    gal_coord: tuple
-            A tuple containing the RA and DEC as floats
-    NSRC:   int
-            An integer specifying the number of stars to generate
+def make_stars_parallel(ra, dec, nsrc=NSRC, cores=None):
+    
+    # By default use all available cores
+    if cores is None:
+        cores = multiprocessing.cpu_count()
+    
 
-    Returns
-    -------
-    coords: list
-            A list of tuples which contains the coords of each star
-    '''
-    ras = []
-    decs = []
+    # 20 jobs each doing 1/20th of the sources
+    group_size = nsrc//20
+    args = [(ra, dec, group_size) for _ in range(20)]
 
-    RA, DEC = gal_coord
-    for i in range(NSRC):
-        ras.append(RA + uniform(-1, 1))
-        decs.append(DEC + uniform(-1, 1))
 
-    return [(ras[i], decs[i]) for i in range(NSRC)]
+    # start a new process for each task, hopefully to reduce residual
+    # memory use
+    ctx = multiprocessing.get_context()
+    pool = ctx.Pool(processes=cores, maxtasksperchild=1)
 
-def write_catalog(fname :str , coords: list):
-    r'''
-    Writes the Star coords to a file in csv format
+    try:
+        # call make_posisions(a) for each a in args
+        results = pool.map(make_stars, args, chunksize=1)
+    except KeyboardInterrupt:
+        # stop all the processes if the user calls the kbd interrupt
+        print("Caught kbd interrupt")
+        pool.close()
+        sys.exit(1)
+    else:
+        # join the pool means wait until there are results
+        pool.close()
+        pool.join()
 
-    Parameters
-    ----------
-    fname: str
-            Name of the output csv file
-    coords: list
-            List of tuples which contains the coords (RA, DEC) of each star
+        # crete an empty array to hold our results
+        radec = np.empty((2,nsrc),dtype=np.float64)
 
-    Raises
-    ------
-    ValueError: If len(coords) < 1
-    '''
-    nsrc = len(coords)
-    if nsrc < 1:
-        raise ValueError(f"The number of start to write need to be > 0, given {nsrc}")
+        # iterate over the results (a list of whatever was returned from make_stars)
+        for i,r in enumerate(results):
+            # store the returned results in the right place in our array
+            start = i*group_size
+            end = start + group_size
+            radec[:,start:end] = r
+            
+    return radec
 
+if __name__ == "__main__":
+    ra,dec = get_radec()
+    pos = make_stars_parallel(ra, dec, NSRC, 2)
     # now write these to a csv file for use by my other program
-    with  open(fname,'w', encoding='utf-8') as f:
+    with open('catalog.csv', 'w') as f:
         print("id,ra,dec", file=f)
-        for i in range(nsrc):
-            print(f"{i:07d}, {coords[i][0]:12f}, {coords[i][1]:12f}", file=f)
+        np.savetxt(f, np.column_stack((np.arange(NSRC), pos[0,:].T, pos[1,:].T)),fmt='%07d, %12f, > %12f')
 
-def main():
-    r'''
-    The main function.
-    Don't import it!
-    '''
-    galcoord = get_coords(args.gal)
-    star_coords = make_stars(galcoord, args.nstars)
-    write_catalog(fname=args.outname, coords = star_coords)
-
-if __name__ == '__main__':
-    a = argparse.ArgumentParser(prog='sky_sim')
-    a.add_argument('-gal', type=str,
-                   help="Name of the Galaxy (def = M31)", default="M31")
-    a.add_argument('-nstars', type=int,
-                   help="No. of stars to simulate (def = 1 mil)", default="1_000_000")
-    a.add_argument('-o', type=str, dest='outname',
-                   help="Name of the output catalog (def = catalog.csv)", default="catalog.csv")
-
-    args = a.parse_args()
-    main()
